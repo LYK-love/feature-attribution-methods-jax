@@ -144,20 +144,19 @@ Calculates the attributions from both Grad-CAM and guided backprop, then multipl
 
 
 ## Installation Requirements
+First, use my [VS-Code-DevContainer](https://github.com/LYK-love/VS-Code-DevContainer-Config) to create a docker container as the environment, which gurantees to be fully clean and reproducible.
 
-Jax is a requirement for the notebooks, you can install GPU accelerated Jax by running the command below.
-```
-pip install --upgrade "jax[cuda]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
-``` 
-The latest Flax can be installed with the following command.
-```
-pip install -q clu ml-collections git+https://github.com/google/flax
-``` 
-The following packages are also required.
-```
-pip install jupyter
-pip install pandas
-pip install matplotlib
+The requirements are:
+* [Jax](https://jax.readthedocs.io/en/latest/installation.html)
+* [Flax](https://flax.readthedocs.io/en/v0.5.3/installation.html)
+* ... 
+
+```sh
+pip install -U "jax[cuda12]"
+pip install -q==0.0.12 ml-collections==0.1.1 keras==3.4.1 flax==0.8.5
+pip install jupyter==1.0.0
+pip install pandas==2.2.2
+pip install matplotlib==3.9.1
 ```
 
 
