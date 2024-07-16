@@ -9,11 +9,17 @@
   "runArgs": [
     "--gpus=all"
   ],
+
+  "mounts": [
+    "source=/SSD_RAID0,target=${containerWorkspaceFolder}/storage,type=bind,consistency=cached"
+  ],
+  
   "remoteEnv": {
     "PATH": "${containerEnv:PATH}:/usr/local/cuda/bin",
     "LD_LIBRARY_PATH": "$LD_LIBRARY_PATH:/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64",
     "XLA_FLAGS": "--xla_gpu_cuda_data_dir=/usr/local/cuda"
   },
+  
 
   // You can run any script here to update the content of the container.
   // "updateContentCommand": "bash .devcontainer/sanity_check.sh", 
