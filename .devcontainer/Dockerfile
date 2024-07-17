@@ -2,6 +2,9 @@
 # For tag list, see https://hub.docker.com/r/nvidia/cuda/tags
 FROM nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04
 
+# Set the working directory (optional, for clarity)
+WORKDIR /
+
 # This value is set to avoid any prompts hanging the build process during package installation.
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
@@ -49,16 +52,17 @@ RUN pip3 install --upgrade setuptools pip
 # RUN pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 
 RUN pip3 install \
-    opencv-python==4.9.0.80 \
+    opencv-python==4.10.0.84 \
     seaborn==0.13.2 \
     tqdm==4.66.2
 
-RUN pip3 install numpy \
+RUN pip3 install numpy==2.0.0 \
     jupyter==1.0.0 \
     scikit-learn \
     matplotlib \
     regex
 
+    
 # Used by OpenMP, a library for parallel programming. This variable sets the number of threads that OpenMP will use for parallel regions (if not otherwise specified in the code). Setting it to 1 restricts OpenMP to use only one thread, 
 ENV OMP_NUM_THREADS=1
 

@@ -1,3 +1,4 @@
+import jax
 import jax.numpy as jnp
 import flax.linen as nn
 import functools
@@ -25,6 +26,20 @@ LAYERS = {
 }
 
 
+def observe(module: nn.Module, x: jax.Array) -> jax.Array:
+    """
+    A flax module layer for Grad-CAM observation of the output that is passed in.
+    Returns x with no changes, this simply adds model parameters for storing values for the Grad-CAM.
+
+    Arguments:
+    - module: Flax module to make the observation of
+    - x: forward pass value to observe
+    """
+    x = module.perturb("gradcam_perturb", x)
+    module.sow("intermediates", "gradcam_sow", x)
+    return x
+
+
 class BasicBlock(nn.Module):
     """
     Basic Block.
@@ -43,7 +58,7 @@ class BasicBlock(nn.Module):
     """
 
     features: int
-    guided_relu: Callable = nn.relu
+    customized_relu: Callable = nn.relu
     kernel_size: Union[int, Iterable[int]] = (3, 3)
     downsample: bool = False
     stride: bool = True
@@ -90,7 +105,7 @@ class BasicBlock(nn.Module):
             params=None if self.param_dict is None else self.param_dict["bn1"],
             dtype=self.dtype,
         )
-        x = self.guided_relu(x)
+        x = self.customized_relu(x)
 
         x = nn.Conv(
             features=self.features,
@@ -145,7 +160,7 @@ class BasicBlock(nn.Module):
             )
 
         x += residual
-        x = self.guided_relu(x)
+        x = self.customized_relu(x)
         act[self.block_name] = x
         return x
 
@@ -169,7 +184,7 @@ class Bottleneck(nn.Module):
     """
 
     features: int
-    guided_relu: Callable = nn.relu
+    customized_relu: Callable = nn.relu
     kernel_size: Union[int, Iterable[int]] = (3, 3)
     downsample: bool = False
     stride: bool = True
@@ -216,7 +231,7 @@ class Bottleneck(nn.Module):
             params=None if self.param_dict is None else self.param_dict["bn1"],
             dtype=self.dtype,
         )
-        x = self.guided_relu(x)
+        x = self.customized_relu(x)
 
         x = nn.Conv(
             features=self.features,
@@ -240,7 +255,7 @@ class Bottleneck(nn.Module):
             params=None if self.param_dict is None else self.param_dict["bn2"],
             dtype=self.dtype,
         )
-        x = self.guided_relu(x)
+        x = self.customized_relu(x)
 
         x = nn.Conv(
             features=self.features * self.expansion,
@@ -294,7 +309,7 @@ class Bottleneck(nn.Module):
             )
 
         x += residual
-        x = self.guided_relu(x)
+        x = self.customized_relu(x)
         act[self.block_name] = x
         return x
 
@@ -351,7 +366,8 @@ class ResNet(nn.Module):
     ckpt_dir: str = None
     dtype: str = "float32"
 
-    guided_relu: Callable = nn.relu
+    customized_relu: Callable = nn.relu
+    use_observed_layer: bool = False
 
     def setup(self):
         self.param_dict = None
@@ -414,7 +430,7 @@ class ResNet(nn.Module):
             params=None if self.param_dict is None else self.param_dict["bn1"],
             dtype=self.dtype,
         )
-        x = self.guided_relu(x)
+        x = self.customized_relu(x)
         x = nn.max_pool(
             x, window_shape=(3, 3), strides=(2, 2), padding=((1, 1), (1, 1))
         )
@@ -429,7 +445,7 @@ class ResNet(nn.Module):
             )
             x = self.block(
                 features=64,
-                guided_relu=self.guided_relu,
+                customized_relu=self.customized_relu,
                 kernel_size=(3, 3),
                 downsample=i == 0 and down,
                 stride=i != 0,
@@ -447,7 +463,7 @@ class ResNet(nn.Module):
             )
             x = self.block(
                 features=128,
-                guided_relu=self.guided_relu,
+                customized_relu=self.customized_relu,
                 kernel_size=(3, 3),
                 downsample=i == 0,
                 param_dict=params,
@@ -464,7 +480,7 @@ class ResNet(nn.Module):
             )
             x = self.block(
                 features=256,
-                guided_relu=self.guided_relu,
+                customized_relu=self.customized_relu,
                 kernel_size=(3, 3),
                 downsample=i == 0,
                 param_dict=params,
@@ -481,13 +497,17 @@ class ResNet(nn.Module):
             )
             x = self.block(
                 features=512,
-                guided_relu=self.guided_relu,
+                customized_relu=self.customized_relu,
                 kernel_size=(3, 3),
                 downsample=i == 0,
                 param_dict=params,
                 block_name=f"block4_{i}",
                 dtype=self.dtype,
             )(x, act, train)
+
+        # Add observed layer for Grad-CAM
+        if self.use_observed_layer:
+            x = observe(self, x)
 
         # Classifier
         x = jnp.mean(x, axis=(1, 2))
@@ -525,7 +545,8 @@ def ResNet18(
     bias_init=nn.initializers.zeros,
     ckpt_dir=None,
     dtype="float32",
-    guided_relu: Callable = nn.relu,
+    customized_relu: Callable = nn.relu,
+    use_observed_layer: bool = False,
 ):
     """
     Implementation of the ResNet18 by He et al.
@@ -573,7 +594,8 @@ def ResNet18(
         bias_init=bias_init,
         ckpt_dir=ckpt_dir,
         dtype=dtype,
-        guided_relu=guided_relu,
+        customized_relu=customized_relu,
+        use_observed_layer=use_observed_layer,
     )
 
 
@@ -586,7 +608,8 @@ def ResNet34(
     bias_init=nn.initializers.zeros,
     ckpt_dir=None,
     dtype="float32",
-    guided_relu: Callable = nn.relu,
+    customized_relu: Callable = nn.relu,
+    use_observed_layer: bool = False,
 ):
     """
     Implementation of the ResNet34 by He et al.
@@ -634,7 +657,8 @@ def ResNet34(
         bias_init=bias_init,
         ckpt_dir=ckpt_dir,
         dtype=dtype,
-        guided_relu=guided_relu,
+        customized_relu=customized_relu,
+        use_observed_layer=use_observed_layer,
     )
 
 
@@ -647,7 +671,8 @@ def ResNet50(
     bias_init=nn.initializers.zeros,
     ckpt_dir=None,
     dtype="float32",
-    guided_relu: Callable = nn.relu,
+    customized_relu: Callable = nn.relu,
+    use_observed_layer: bool = False,
 ):
     """
     Implementation of the ResNet50 by He et al.
@@ -695,7 +720,8 @@ def ResNet50(
         bias_init=bias_init,
         ckpt_dir=ckpt_dir,
         dtype=dtype,
-        guided_relu=guided_relu,
+        customized_relu=customized_relu,
+        use_observed_layer=use_observed_layer,
     )
 
 
@@ -708,7 +734,8 @@ def ResNet101(
     bias_init=nn.initializers.zeros,
     ckpt_dir=None,
     dtype="float32",
-    guided_relu: Callable = nn.relu,
+    customized_relu: Callable = nn.relu,
+    use_observed_layer: bool = False,
 ):
     """
     Implementation of the ResNet101 by He et al.
@@ -756,7 +783,8 @@ def ResNet101(
         bias_init=bias_init,
         ckpt_dir=ckpt_dir,
         dtype=dtype,
-        guided_relu=guided_relu,
+        customized_relu=customized_relu,
+        use_observed_layer=use_observed_layer,
     )
 
 
@@ -769,7 +797,8 @@ def ResNet152(
     bias_init=nn.initializers.zeros,
     ckpt_dir=None,
     dtype="float32",
-    guided_relu: Callable = nn.relu,
+    customized_relu: Callable = nn.relu,
+    use_observed_layer: bool = False,
 ):
     """
     Implementation of the ResNet152 by He et al.
@@ -817,5 +846,6 @@ def ResNet152(
         bias_init=bias_init,
         ckpt_dir=ckpt_dir,
         dtype=dtype,
-        guided_relu=guided_relu,
+        customized_relu=customized_relu,
+        use_observed_layer=use_observed_layer,
     )

@@ -144,24 +144,32 @@ Calculates the attributions from both Grad-CAM and guided backprop, then multipl
 
 
 ## Installation Requirements
-First, use my [VS-Code-DevContainer](https://github.com/LYK-love/VS-Code-DevContainer-Config) to create a docker container as the environment, which gurantees to be fully clean and reproducible.
+First, use my [VS-Code-DevContainer](https://github.com/LYK-love/VS-Code-DevContainer-Config) to create a docker container as the environment, which gurantees to be fully clean and reproducible. **Rememebr to comment out this line** in `./devcontainer/devcontainer.json`
+```json
+// Change this for you need.
+  "mounts": [
+    "source=/SSD_RAID0,target=${containerWorkspaceFolder}/storage,type=bind,consistency=cached"
+  ],
+```
+
+After that, inside the container, run
+```sh
+bash ./setup.sh
+```
 
 The requirements are:
 * [Jax](https://jax.readthedocs.io/en/latest/installation.html)
 * [Flax](https://flax.readthedocs.io/en/v0.5.3/installation.html)
 * ... 
 
-```sh
-pip install -U "jax[cuda12]"
-pip install -q clu==0.0.12 ml-collections==0.1.1 keras==3.4.1 flax==0.8.5
-pip install --upgrade git+https://github.com/matthias-wright/flaxmodels.git
-pip install jupyter==1.0.0
-pip install pandas==2.2.2
-pip install matplotlib==3.9.1
-```
+To use `flaxmodels`, see https://github.com/matthias-wright/flaxmodels/tree/main/flaxmodels/resnet
+To see the ground truth label for an image in ImageNet, see https://gist.github.com/yrevar/942d3a0ac09ec9e5eb3a
+
+
 
 
 ## References
+ - [pytorch-grad-cam](https://jacobgil.github.io/pytorch-gradcam-book/introduction.html)
  - [Gradients] - [Deep Inside Convolutional Networks: Visualising Image Classification Models and Saliency Maps](https://arxiv.org/abs/1312.6034)
  - [Integrated Gradients] - [Axiomatic Attribution for Deep Networks](https://arxiv.org/abs/1703.01365)
  - [Deconvolution] - [Visualizing and Understanding Convolutional Networks](https://arxiv.org/abs/1311.2901)
