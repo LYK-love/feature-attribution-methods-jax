@@ -505,7 +505,7 @@ class ResNet(nn.Module):
                 dtype=self.dtype,
             )(x, act, train)
 
-        x = x
+        x = x  # For debugging purposes
 
         # Add observed layer for Grad-CAM
         if self.use_observed_layer:
