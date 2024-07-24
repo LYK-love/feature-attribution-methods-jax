@@ -1,0 +1,3 @@
+[submodule "flaxmodels"]
+	path = flaxmodels
+	url = git@github.com:LYK-love/flaxmodels.git
