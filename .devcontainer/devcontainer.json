@@ -13,7 +13,7 @@
 
   // Change this for you need.
   "mounts": [
-    "source=/SSD_RAID0,target=${containerWorkspaceFolder}/storage,type=bind,consistency=cached"
+    "source=/storage/,target=${containerWorkspaceFolder}/storage,type=bind,consistency=cached"
   ],
   
   "remoteEnv": {
