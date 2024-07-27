@@ -7,9 +7,15 @@ from flax.core.frozen_dict import freeze
 SIGN = -1
 
 
-def get_layer_activations(state, layer_idx: int = 4):
+def get_layer_activations(state, layer_idx: int = 4, within_block=False):
     key = f"gradcam_sow_{layer_idx}"
-    layer_activations = state["intermediates"][key][0]
+    intermediates = state["intermediates"]
+
+    if within_block:
+        assert len(intermediates) == 1, "There should be only one intermediate"
+        intermediates = next(iter(intermediates.values()))
+
+    layer_activations = intermediates[key][0]
     return layer_activations
 
 
@@ -21,6 +27,7 @@ def get_layer_gradients(
     target,
     loss_fn,
     layer_idx: int = 4,
+    within_block=False,
 ):
     key = f"gradcam_perturb_{layer_idx}"
     perturbations = copy.deepcopy(variables["perturbations"])
@@ -29,8 +36,19 @@ def get_layer_gradients(
         key: layer_activations
     }  # This is the perturbation that we will use to extract the gradients.
 
+    if within_block:
+        assert len(perturbations) == 1, "There should be only one perturbation"
+        key_of_block = next(iter(perturbations.keys()))
+
     # Manually reconstruct the dictionary, ensuring the specific key is frozen
-    perturbations.update(layer_perturbations)
+    if within_block:
+        block_perturbations = perturbations[key_of_block]
+        block_perturbations.update(layer_perturbations)
+        perturbations.update({key_of_block: block_perturbations})
+
+    else:
+        perturbations.update(layer_perturbations)
+
     perturbations = freeze(perturbations)
 
     layer_grads = grad(loss_fn, argnums=3)(
@@ -43,10 +61,14 @@ def get_layer_gradients(
     )
 
     # Here I use the negated gradients w.r.t. the classificaiton loss to get the positive contributions.
-    layer_grads = SIGN * layer_grads[key]
-    variables["perturbations"] = {
-        key: jnp.zeros_like(value) for key, value in perturbations.items()
-    }
+    if within_block:
+        layer_grads = SIGN * layer_grads[key_of_block][key]
+    else:
+        layer_grads = SIGN * layer_grads[key]
+
+    # variables["perturbations"] = {
+    #     key: jnp.zeros_like(value) for key, value in perturbations.items()
+    # }
     return layer_grads
 
 
